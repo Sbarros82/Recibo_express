@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editar Recibo Avulso - Recibo Express</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            color: #1a202c;
+            line-height: 1.6;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #1a202c;
+            color: white;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid #2d3748;
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+
+        .sidebar-header p {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            font-weight: 300;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 1rem 1.5rem;
+            color: #e2e8f0;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: #2d3748;
+            color: white;
+            border-left-color: #667eea;
+        }
+
+        .nav-item.active {
+            background: #2d3748;
+            color: white;
+            border-left-color: #667eea;
+        }
+
+        .nav-item i {
+            width: 20px;
+            margin-right: 12px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 1.5rem;
+            border-top: 1px solid #2d3748;
+            background: #1a202c;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #2d3748;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.offline {
+            background: #f56565;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .content-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .content-header h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+        }
+
+        .content-header p {
+            color: #718096;
+            font-size: 1rem;
+        }
+
+        .main-content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .card h2 {
+            color: #2d3748;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 i {
+            color: #667eea;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            box-shadow: 0 2px 4px rgba(72, 187, 120, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+            box-shadow: 0 4px 8px rgba(72, 187, 120, 0.3);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            box-shadow: 0 2px 4px rgba(245, 101, 101, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            box-shadow: 0 4px 8px rgba(245, 101, 101, 0.3);
+        }
+
+        .flash {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid;
+        }
+
+        .flash.success {
+            background: #f0fff4;
+            color: #22543d;
+            border-left-color: #48bb78;
+        }
+
+        .flash.error {
+            background: #fff5f5;
+            color: #742a2a;
+            border-left-color: #f56565;
+        }
+
+        .flash.warning {
+            background: #fffaf0;
+            color: #744210;
+            border-left-color: #ed8936;
+        }
+
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .preview-card {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .preview-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .preview-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .preview-details {
+            text-align: left;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .preview-details p {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .preview-details strong {
+            color: #2d3748;
+        }
+
+        .help-text {
+            font-size: 0.8rem;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1001;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 768px) {
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .main-content-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .content-header {
+                padding: 1.5rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                justify-content: center;
+            }
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Button -->
+    <button class="mobile-menu-btn" id="mobileMenuBtn">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1><i class="fas fa-receipt"></i> Recibo Express</h1>
+            <p>Gerador automático de recibos</p>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item">
+                <i class="fas fa-home"></i>
+                Dashboard
+            </a>
+            <a href="/recibo_avulso" class="nav-item active">
+                <i class="fas fa-plus"></i>
+                Recibo Avulso
+            </a>
+            <a href="/previa" class="nav-item">
+                <i class="fas fa-eye"></i>
+                Prévia dos Dados
+            </a>
+            <a href="/download_pdf" class="nav-item">
+                <i class="fas fa-download"></i>
+                Baixar PDF
+            </a>
+            <a href="/imprimir_todos" class="nav-item">
+                <i class="fas fa-print"></i>
+                Imprimir
+            </a>
+        </nav>
+        
+        <div class="sidebar-footer">
+            <div class="status-indicator" id="statusIndicator">
+                <div class="status-dot"></div>
+                <span>Servidor Online</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="content-header">
+            <h2><i class="fas fa-edit"></i> Editar Recibo</h2>
+            <p>Revise e edite os dados antes de gerar o PDF</p>
+        </div>
+
+        {% with msgs = get_flashed_messages() %}
+            {% if msgs %}
+                {% for m in msgs %}
+                    <div class="flash {% if 'sucesso' in m.lower() %}success{% else %}error{% endif %}">
+                        <i class="fas {% if 'sucesso' in m.lower() %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                        {{ m }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="main-content-grid">
+            <div class="card">
+                <h2><i class="fas fa-edit"></i> Editar Dados</h2>
+                
+                <form method="POST" action="/atualizar_recibo_avulso" id="editForm">
+                    <div class="form-group">
+                        <label for="nome">
+                            <i class="fas fa-user"></i> Nome do Funcionário *
+                        </label>
+                        <input type="text" id="nome" name="nome" required 
+                               value="{{ dados.nome }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="referencia">
+                            <i class="fas fa-tag"></i> Referência do Pagamento
+                        </label>
+                        <input type="text" id="referencia" name="referencia" 
+                               value="{{ dados.referencia or '' }}"
+                               placeholder="Ex: Pagamento de serviços, Reembolso, etc.">
+                        <div class="help-text">Descrição do que está sendo pago (opcional)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="valor">
+                            <i class="fas fa-dollar-sign"></i> Valor da Comissão *
+                        </label>
+                        <input type="text" id="valor" name="valor" required 
+                               value="{{ "%.2f"|format(dados.valor)|replace('.', ',') }}">
+                        <div class="help-text">Formato: 1.234,56</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="data">
+                            <i class="fas fa-calendar"></i> Data do Recibo
+                        </label>
+                        <input type="date" id="data" name="data" 
+                               value="{{ dados.data }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="observacoes">
+                            <i class="fas fa-sticky-note"></i> Observações
+                        </label>
+                        <textarea id="observacoes" name="observacoes" 
+                                  placeholder="Observações adicionais (opcional)">{{ dados.observacoes }}</textarea>
+                    </div>
+
+                    <div class="actions">
+                        <button type="submit" class="btn">
+                            <i class="fas fa-save"></i>
+                            Atualizar Dados
+                        </button>
+                        <button type="submit" formaction="/gerar_recibo_avulso_final" class="btn btn-secondary">
+                            <i class="fas fa-file-pdf"></i>
+                            Gerar PDF Final
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-eye"></i> Prévia do Recibo</h2>
+                
+                <div class="preview-card">
+                    <div class="preview-title">RECIBO</div>
+                    <div class="preview-value">{{ dados.valor_formatado }}</div>
+                    
+                    <div class="preview-details">
+                        <p><strong>Funcionário:</strong> {{ dados.nome }}</p>
+                        <p><strong>Data:</strong> {{ dados.data_br }}</p>
+                        <p><strong>Valor por extenso:</strong> {{ dados.valor_por_extenso }}</p>
+                        {% if dados.referencia %}
+                        <p><strong>Referência:</strong> {{ dados.referencia }}</p>
+                        {% endif %}
+                        {% if dados.observacoes %}
+                        <p><strong>Observações:</strong> {{ dados.observacoes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const sidebar = document.getElementById('sidebar');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+
+        // Formatação do valor em tempo real
+        document.getElementById('valor').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 2) {
+                value = value.replace(/(\d)(\d{2})$/, '$1,$2');
+                value = value.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+            }
+            e.target.value = value;
+        });
+
+        // Check server status
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const statusIndicator = document.getElementById('statusIndicator');
+                const statusDot = statusIndicator.querySelector('.status-dot');
+                const statusText = statusIndicator.querySelector('span');
+                
+                if (data.status === 'online') {
+                    statusIndicator.classList.remove('offline');
+                    statusDot.classList.remove('offline');
+                    statusText.textContent = 'Servidor Online';
+                } else {
+                    statusIndicator.classList.add('offline');
+                    statusDot.classList.add('offline');
+                    statusText.textContent = 'Servidor Offline';
+                }
+            } catch (error) {
+                const statusIndicator = document.getElementById('statusIndicator');
+                const statusDot = statusIndicator.querySelector('.status-dot');
+                const statusText = statusIndicator.querySelector('span');
+                
+                statusIndicator.classList.add('offline');
+                statusDot.classList.add('offline');
+                statusText.textContent = 'Servidor Offline';
+            }
+        }
+
+        // Check status on load and every 30 seconds
+        checkServerStatus();
+        setInterval(checkServerStatus, 30000);
+
+        // Auto-hide flash messages
+        setTimeout(() => {
+            const flashMessages = document.querySelectorAll('.flash');
+            flashMessages.forEach(msg => {
+                msg.style.opacity = '0';
+                msg.style.transform = 'translateY(-20px)';
+                setTimeout(() => msg.remove(), 300);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

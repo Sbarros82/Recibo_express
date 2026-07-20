@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Recibo Express</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background: #1a202c;
+            color: white;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-header {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid #2d3748;
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: white;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            font-weight: 300;
+        }
+        
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+        
+        .nav-item {
+            display: block;
+            color: #a0aec0;
+            padding: 0.75rem 1.5rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item:hover {
+            color: white;
+            background-color: #2d3748;
+            border-left-color: #4299e1;
+        }
+        
+        .nav-item.active {
+            color: white;
+            background-color: #2d3748;
+            border-left-color: #4299e1;
+        }
+        
+        .nav-item i {
+            margin-right: 0.75rem;
+            width: 1.25rem;
+            text-align: center;
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 20px;
+            border: none;
+        }
+        
+        .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e5e7eb;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+            background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+        }
+        
+        .upload-area {
+            border: 2px dashed #d1d5db;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+        
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        .preview-image {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 18px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .alert-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Botão do menu mobile -->
+    <button class="mobile-menu-btn" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1><i class="fas fa-receipt"></i> Recibo Express</h1>
+            <p>Gerador automático de recibos</p>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="/" class="nav-item">
+                <i class="fas fa-home"></i>
+                Dashboard
+            </a>
+            <a href="/recibo_avulso" class="nav-item">
+                <i class="fas fa-plus"></i>
+                Recibo Avulso
+            </a>
+            <a href="/configuracoes" class="nav-item active">
+                <i class="fas fa-cog"></i>
+                Configurações
+            </a>
+        </nav>
+    </div>
+
+    <!-- Conteúdo Principal -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-12">
+                    <h2 class="mb-4" style="color: #1a202c; font-weight: 600;"><i class="fas fa-cog"></i> Configurações da Empresa</h2>
+                    
+                    <!-- Flash Messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <!-- Informações da Empresa -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-building"></i> Informações da Empresa</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/salvar_configuracoes" method="POST">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="nome_empresa" class="form-label">Nome da Empresa</label>
+                                        <input type="text" class="form-control" id="nome_empresa" name="nome_empresa" 
+                                               value="{{ config.nome_empresa }}" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="telefone" class="form-label">Telefone</label>
+                                        <input type="text" class="form-control" id="telefone" name="telefone" 
+                                               value="{{ config.telefone }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="endereco" class="form-label">Endereço Completo</label>
+                                    <textarea class="form-control" id="endereco" name="endereco" rows="2" 
+                                              required>{{ config.endereco }}</textarea>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">E-mail</label>
+                                        <input type="email" class="form-control" id="email" name="email" value="{{ config.email }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="site" class="form-label">Site</label>
+                                        <input type="url" class="form-control" id="site" name="site" value="{{ config.site }}">
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> Salvar Informações
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Upload da Logo -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-image"></i> Logo da Empresa</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/upload_logo" method="POST" enctype="multipart/form-data">
+                                <div class="upload-area" onclick="document.getElementById('logo').click()">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <h5>Clique para selecionar a logo</h5>
+                                    <p class="text-muted">Formatos aceitos: PNG, JPG, JPEG (máx. 2MB)</p>
+                                    <input type="file" id="logo" name="logo" accept="image/*" style="display: none;" onchange="previewLogo(this)">
+                                </div>
+                                <div id="logo-preview" class="mt-3" style="display: none;">
+                                    <img id="logo-img" class="preview-image" alt="Preview da logo">
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3">
+                                    <i class="fas fa-upload"></i> Upload da Logo
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Upload da Imagem de Fundo -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-water"></i> Imagem de Fundo Timbrado</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/upload_watermark" method="POST" enctype="multipart/form-data">
+                                <div class="upload-area" onclick="document.getElementById('watermark').click()">
+                                    <i class="fas fa-image fa-3x text-muted mb-3"></i>
+                                    <h5>Clique para selecionar a imagem de fundo</h5>
+                                    <p class="text-muted">Formatos aceitos: PNG, JPG, JPEG (máx. 5MB)</p>
+                                    <input type="file" id="watermark" name="watermark" accept="image/*" style="display: none;" onchange="previewWatermark(this)">
+                                </div>
+                                <div id="watermark-preview" class="mt-3" style="display: none;">
+                                    <img id="watermark-img" class="preview-image" alt="Preview da imagem de fundo">
+                                </div>
+                                <button type="submit" class="btn btn-primary mt-3">
+                                    <i class="fas fa-upload"></i> Upload da Imagem de Fundo
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Preview do Recibo -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="fas fa-eye"></i> Preview do Recibo</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">As configurações serão aplicadas automaticamente aos novos recibos gerados.</p>
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Dica:</strong> Para melhor resultado, use imagens com alta resolução e formato PNG com fundo transparente.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle sidebar no mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+                if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+        
+        // Preview da logo
+        function previewLogo(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('logo-img').src = e.target.result;
+                    document.getElementById('logo-preview').style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // Preview da imagem de fundo
+        function previewWatermark(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('watermark-img').src = e.target.result;
+                    document.getElementById('watermark-preview').style.display = 'block';
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // Drag and drop para upload
+        document.querySelectorAll('.upload-area').forEach(area => {
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.classList.add('dragover');
+            });
+            
+            area.addEventListener('dragleave', () => {
+                area.classList.remove('dragover');
+            });
+            
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const input = area.querySelector('input[type="file"]');
+                    input.files = files;
+                    if (input.id === 'logo') {
+                        previewLogo(input);
+                    } else if (input.id === 'watermark') {
+                        previewWatermark(input);
+                    }
+                }
+            });
+        });
+        
+        // Auto-hide alerts
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

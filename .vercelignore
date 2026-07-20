@@ -1,0 +1,9 @@
+recibo-php/
+node_modules/
+frontend/
+uploads/
+static/recibos/
+__pycache__/
+*.pyc
+.env
+.git/

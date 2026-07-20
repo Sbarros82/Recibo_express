@@ -4,7 +4,7 @@ frontend/dist/
 static/app/
 UPLOAD_NA_HOSTINGER/
 .vercel/
-uploads/
+/uploads/
 static/recibos/*.pdf
 __pycache__/
 *.pyc

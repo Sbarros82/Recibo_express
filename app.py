@@ -3,7 +3,6 @@ import os
 import sys
 import json
 import base64
-import pdfplumber
 
 
 def _configurar_saida_console():
@@ -18,11 +17,6 @@ def _configurar_saida_console():
 
 
 _configurar_saida_console()
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
 import zipfile
 import tempfile
 from datetime import datetime
@@ -461,6 +455,7 @@ def extrair_dados_pdf(caminho_pdf):
     dados_brutos = {}
     
     try:
+        import pdfplumber
         print("🔍 Abrindo PDF com pdfplumber...")
         with pdfplumber.open(caminho_pdf) as pdf:
             print(f"✅ PDF aberto com sucesso. Páginas: {len(pdf.pages)}")

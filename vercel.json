@@ -2,9 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
     "app.py": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "excludeFiles": "{recibo-php/**,node_modules/**,uploads/**,static/recibos/**,**/__pycache__/**}"
+      "maxDuration": 300,
+      "excludeFiles": "{recibo-php/**,node_modules/**,uploads/**,static/**,api/**,**/__pycache__/**,**/*.md,**/*.pyc}"
     }
   }
 }

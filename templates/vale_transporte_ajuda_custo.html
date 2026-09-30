@@ -659,6 +659,15 @@
             uploadText.style.fontWeight = '600';
         }
 
+        function resetUploadUi() {
+            submitBtn.disabled = false;
+            loading.style.display = 'none';
+            progressFill.style.width = '0%';
+        }
+
+        // Se o navegador voltar para a página (bfcache / falha de rede), tira o "Processando..."
+        window.addEventListener('pageshow', resetUploadUi);
+
         // Form submission with loading
         uploadForm.addEventListener('submit', (e) => {
             if (fileInput.files.length === 0) {
@@ -667,10 +676,8 @@
                 return;
             }
 
-            submitBtn.disabled = true;
+            // NÃO desabilitar o botão aqui: no Chrome isso cancela o POST (ERR_FAILED / spinner eterno).
             loading.style.display = 'block';
-            
-            // Simulate progress
             let progress = 0;
             const interval = setInterval(() => {
                 progress += Math.random() * 15;
@@ -678,11 +685,24 @@
                 progressFill.style.width = progress + '%';
             }, 200);
 
-            // Clear interval after form submission
+            // Desabilita só depois do browser iniciar o envio
+            setTimeout(() => {
+                submitBtn.disabled = true;
+            }, 0);
+
             setTimeout(() => {
                 clearInterval(interval);
                 progressFill.style.width = '100%';
             }, 2000);
+
+            // Se a navegação falhar, libera a tela depois de 60s
+            setTimeout(() => {
+                if (loading.style.display === 'block') {
+                    clearInterval(interval);
+                    resetUploadUi();
+                    alert('O envio demorou demais ou falhou. Tente novamente.');
+                }
+            }, 60000);
         });
 
         // Check server status

@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import base64
+import zlib
 
 
 def _configurar_saida_console():
@@ -72,11 +73,35 @@ def _ler_dados_json_form(chave='dados_json'):
         return None
 
 
+def _salvar_dados_sessao(chave, dados):
+    """Salva lista de dados na sessão de forma compacta (cabe no cookie)."""
+    raw = json.dumps(dados, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+    session[chave] = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode('ascii')
+    session[f'{chave}__z'] = 1
+
+
+def _carregar_dados_sessao(chave):
+    """Lê lista de dados da sessão (compactada ou lista legada)."""
+    valor = session.get(chave)
+    if not valor:
+        return []
+    if isinstance(valor, list):
+        return valor
+    if not isinstance(valor, str):
+        return []
+    try:
+        if session.get(f'{chave}__z'):
+            return json.loads(zlib.decompress(base64.urlsafe_b64decode(valor.encode('ascii'))))
+        return json.loads(valor)
+    except Exception:
+        return []
+
+
 def _obter_dados_form_ou_sessao(chave_sessao):
     dados = _ler_dados_json_form()
     if dados is not None:
         return dados
-    return session.get(chave_sessao, [])
+    return _carregar_dados_sessao(chave_sessao)
 
 
 def _arquivo_temporario(prefixo):
@@ -2755,59 +2780,39 @@ def download_modelo_combustivel():
 @app.route('/upload_csv_vale_transporte', methods=['POST'])
 def upload_csv_vale_transporte():
     """Processa upload de Excel/CSV de vale transporte e ajuda de custo"""
-    print("🔍 INICIANDO UPLOAD DE PLANILHA...")
-    
-    if 'arquivo' not in request.files:
-        print("❌ Nenhum arquivo encontrado na requisição")
-        flash('Nenhum arquivo selecionado', 'error')
-        return redirect(url_for('vale_transporte_ajuda_custo'))
-    
-    file = request.files['arquivo']
-    print(f"📁 Arquivo recebido: {file.filename}")
-    
-    if file.filename == '':
-        print("❌ Nome do arquivo está vazio")
-        flash('Nenhum arquivo selecionado', 'error')
-        return redirect(url_for('vale_transporte_ajuda_custo'))
-    
-    extensao = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-    if not file or extensao not in ('csv', 'xlsx', 'xls'):
-        print(f"❌ Arquivo não permitido: {file.filename}")
-        flash('Tipo de arquivo não permitido. Use Excel (.xlsx) ou CSV.', 'error')
-        return redirect(url_for('vale_transporte_ajuda_custo'))
-    
-    print(f"✅ Arquivo {extensao.upper()} validado com sucesso")
-    
-    # Limpar nome do arquivo
-    filename = secure_filename(file.filename)
-    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
-    filename = re.sub(r'[^\w\-_\.]', '_', filename)
-    if not filename.lower().endswith(f'.{extensao}'):
-        filename = f"{filename}.{extensao}"
-    
-    print(f"📁 Nome do arquivo limpo: {filename}")
-    
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    print(f"📁 Caminho completo: {filepath}")
-    
+    print("INICIANDO UPLOAD DE PLANILHA...")
+
+    filepath = None
     try:
-        file.save(filepath)
-        print("✅ Arquivo salvo com sucesso")
-        
-        # Verificar se o arquivo foi salvo
-        if not os.path.exists(filepath):
-            print("❌ Arquivo não foi salvo corretamente")
-            flash('Erro ao salvar arquivo', 'error')
+        if 'arquivo' not in request.files:
+            flash('Nenhum arquivo selecionado', 'error')
             return redirect(url_for('vale_transporte_ajuda_custo'))
-        
-        print(f"✅ Arquivo existe: {os.path.getsize(filepath)} bytes")
-        
-        # Processar Excel ou CSV
-        print("🔍 Iniciando processamento da planilha...")
+
+        file = request.files['arquivo']
+        print(f"Arquivo recebido: {file.filename}")
+
+        if not file or file.filename == '':
+            flash('Nenhum arquivo selecionado', 'error')
+            return redirect(url_for('vale_transporte_ajuda_custo'))
+
+        extensao = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+        if extensao not in ('csv', 'xlsx', 'xls'):
+            flash('Tipo de arquivo não permitido. Use Excel (.xlsx) ou CSV.', 'error')
+            return redirect(url_for('vale_transporte_ajuda_custo'))
+
+        filename = secure_filename(file.filename) or f'planilha.{extensao}'
+        filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+        filename = re.sub(r'[^\w\-_\.]', '_', filename)
+        if not filename.lower().endswith(f'.{extensao}'):
+            filename = f"{filename}.{extensao}"
+
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        file.save(filepath)
+
         dados = processar_arquivo_vale_transporte(filepath)
-        
+
         if not dados:
-            print("❌ Nenhum dado processado da planilha")
             flash(
                 'Nenhum dado válido encontrado. Use o modelo padrão com colunas '
                 '"Nome", "Veículo" e "Valor". Se Veículo tiver Carro → Ajuda de Custo; '
@@ -2816,31 +2821,32 @@ def upload_csv_vale_transporte():
                 'error',
             )
             return redirect(url_for('vale_transporte_ajuda_custo'))
-        
-        print(f"✅ Dados processados: {len(dados)} registros")
-        
+
+        _salvar_dados_sessao('dados_csv_previa', dados)
         flash(
             f'Dados processados com sucesso! {len(dados)} registros encontrados. Verifique a prévia antes de gerar os recibos.',
             'success',
         )
-        return render_template('previa_csv_vale_transporte.html', dados=dados)
-        
+        # Post-Redirect-Get: evita o navegador ficar na URL do POST (ERR_FAILED ao recarregar)
+        return redirect(url_for('previa_csv_vale_transporte'))
+
     except Exception as e:
         error_msg = f'Erro ao processar arquivo: {str(e)}'
-        print(f"❌ ERRO DETALHADO: {error_msg}")
+        print(f"ERRO DETALHADO: {error_msg}")
         flash(error_msg, 'error')
+        return redirect(url_for('vale_transporte_ajuda_custo'))
     finally:
-        # Limpar arquivo temporário
-        if os.path.exists(filepath):
-            print(f"🗑️ Removendo arquivo temporário: {filepath}")
-            os.remove(filepath)
-    
-    return redirect(url_for('vale_transporte_ajuda_custo'))
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except OSError:
+                pass
+
 
 @app.route('/previa_csv_vale_transporte')
 def previa_csv_vale_transporte():
     """Mostra prévia dos dados CSV processados"""
-    dados_previa = session.get('dados_csv_previa') or []
+    dados_previa = _carregar_dados_sessao('dados_csv_previa')
     if not isinstance(dados_previa, list):
         dados_previa = []
     return render_template('previa_csv_vale_transporte.html', dados=dados_previa)

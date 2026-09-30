@@ -475,8 +475,8 @@
         {% with msgs = get_flashed_messages() %}
             {% if msgs %}
                 {% for m in msgs %}
-                    <div class="flash {% if 'Sucesso' in m %}success{% elif 'exemplo' in m.lower() %}warning{% else %}error{% endif %}">
-                        <i class="fas {% if 'Sucesso' in m %}fa-check-circle{% elif 'exemplo' in m.lower() %}fa-exclamation-triangle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                    <div class="flash {% if 'sucesso' in m.lower() %}success{% elif 'exemplo' in m.lower() %}warning{% else %}error{% endif %}">
+                        <i class="fas {% if 'sucesso' in m.lower() %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
                         {{ m }}
                     </div>
                 {% endfor %}

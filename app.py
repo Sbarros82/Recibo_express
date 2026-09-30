@@ -2867,6 +2867,7 @@ def gerar_recibos_csv():
         
         gerar_pdf_unico_vale_transporte(dados, output_path)
         session.pop('dados_csv_previa', None)
+        session.pop('dados_csv_previa__z', None)
         
         return send_file(
             output_path,

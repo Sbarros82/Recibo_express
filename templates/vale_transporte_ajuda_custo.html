@@ -501,14 +501,14 @@
     <div class="main-content">
         <div class="content-header">
             <h2><i class="fas fa-bus"></i> Vale Transporte & Ajuda de Custo</h2>
-            <p>Gere recibos de vale transporte e ajuda de custo a partir de arquivo CSV</p>
+            <p>Gere recibos a partir da planilha padrão Excel (Nome, Veículo, Valor)</p>
         </div>
 
         {% with msgs = get_flashed_messages() %}
             {% if msgs %}
                 {% for m in msgs %}
-                    <div class="flash {% if 'Sucesso' in m %}success{% elif 'exemplo' in m.lower() %}warning{% else %}error{% endif %}">
-                        <i class="fas {% if 'Sucesso' in m %}fa-check-circle{% elif 'exemplo' in m.lower() %}fa-exclamation-triangle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                    <div class="flash {% if 'Sucesso' in m or 'sucesso' in m %}success{% elif 'exemplo' in m.lower() %}warning{% else %}error{% endif %}">
+                        <i class="fas {% if 'Sucesso' in m or 'sucesso' in m %}fa-check-circle{% elif 'exemplo' in m.lower() %}fa-exclamation-triangle{% else %}fa-exclamation-triangle{% endif %}"></i>
                         {{ m }}
                     </div>
                 {% endfor %}
@@ -516,15 +516,15 @@
         {% endwith %}
 
         <div class="card">
-            <h2><i class="fas fa-upload"></i> Upload do Arquivo CSV</h2>
+            <h2><i class="fas fa-upload"></i> Upload da Planilha</h2>
             <form method="POST" action="/upload_csv_vale_transporte" enctype="multipart/form-data" id="uploadForm">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">
-                        <i class="fas fa-file-csv"></i>
+                        <i class="fas fa-file-excel"></i>
                     </div>
-                    <div class="upload-text">Clique aqui ou arraste seu arquivo CSV</div>
-                    <div class="upload-subtext">Formatos aceitos: CSV (máx. 10MB)</div>
-                    <input type="file" id="fileInput" name="arquivo" accept=".csv" required class="file-input">
+                    <div class="upload-text">Clique aqui ou arraste sua planilha</div>
+                    <div class="upload-subtext">Formatos aceitos: Excel (.xlsx) ou CSV (máx. 10MB)</div>
+                    <input type="file" id="fileInput" name="arquivo" accept=".xlsx,.xls,.csv" required class="file-input">
                 </div>
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
@@ -536,8 +536,12 @@
                 <div class="actions">
                     <button type="submit" class="btn" id="submitBtn">
                         <i class="fas fa-magic"></i>
-                        Processar CSV
+                        Processar Planilha
                     </button>
+                    <a href="/download_modelo_combustivel" class="btn btn-secondary">
+                        <i class="fas fa-download"></i>
+                        Baixar modelo padrão
+                    </a>
                 </div>
             </form>
         </div>
@@ -545,7 +549,7 @@
         <div class="card">
             <h2><i class="fas fa-download"></i> Downloads</h2>
             <p style="color: #718096; margin-bottom: 20px;">
-                Após processar o CSV, você pode baixar um único arquivo PDF com todos os recibos ou imprimir diretamente.
+                Após processar a planilha, você pode baixar um único arquivo PDF com todos os recibos ou imprimir diretamente.
             </p>
             <div class="actions">
                 <a href="/download_pdf_csv" class="btn btn-secondary">
@@ -563,12 +567,12 @@
             <h2><i class="fas fa-info-circle"></i> Informações do Sistema</h2>
             <div class="info-grid">
                 <div class="info-item">
-                    <h3><i class="fas fa-file-csv"></i> Formato CSV</h3>
-                    <p>Arquivo deve conter as colunas: Funcionário, descrição, Valor</p>
+                    <h3><i class="fas fa-file-excel"></i> Modelo padrão</h3>
+                    <p>Planilha Excel com colunas: Nome, Veículo, Valor</p>
                 </div>
                 <div class="info-item">
                     <h3><i class="fas fa-magic"></i> Identificação Automática</h3>
-                    <p>Sistema identifica automaticamente o tipo de recibo pela descrição</p>
+                    <p>Carro = Ajuda de Custo · qualquer outra informação = Vale transporte</p>
                 </div>
                 <div class="info-item">
                     <h3><i class="fas fa-calendar"></i> Referência</h3>
@@ -580,13 +584,18 @@
                 </div>
             </div>
             
-            <h3 style="margin-top: 30px; margin-bottom: 15px;"><i class="fas fa-table"></i> Formato do Arquivo CSV</h3>
+            <h3 style="margin-top: 30px; margin-bottom: 15px;"><i class="fas fa-table"></i> Formato do Modelo Padrão</h3>
             <div class="csv-format">
-<span class="header">Funcionário</span>,<span class="header">descrição</span>,<span class="header">Valor</span>
-<span class="data">João Silva</span>,<span class="data">Ajuda de Custo</span>,<span class="data">150,00</span>
-<span class="data">Maria Santos</span>,<span class="data">Vale transporte</span>,<span class="data">336,00</span>
-<span class="data">Pedro Oliveira</span>,<span class="data">Ajuda de Custo</span>,<span class="data">300,00</span>
+<span class="header">Nome</span>,<span class="header">Veículo</span>,<span class="header">Valor</span>
+<span class="data">Aline</span>,<span class="data">Carro</span>,<span class="data">150</span>
+<span class="data">Amanda</span>,<span class="data">Carro</span>,<span class="data">150</span>
+<span class="data">Mônica Cristina</span>,<span class="data"></span>,<span class="data">460</span>
+<span class="data">Jessica</span>,<span class="data"></span>,<span class="data">230</span>
             </div>
+            <p style="color: #718096; margin-top: 12px; font-size: 0.95rem;">
+                <strong>Regra:</strong> se a coluna Veículo tiver <em>Carro</em> → Ajuda de Custo.
+                Qualquer outra informação (vazio, número, texto) → Vale transporte.
+            </p>
         </div>
     </div>
 
@@ -654,7 +663,7 @@
         uploadForm.addEventListener('submit', (e) => {
             if (fileInput.files.length === 0) {
                 e.preventDefault();
-                alert('Por favor, selecione um arquivo CSV.');
+                alert('Por favor, selecione um arquivo Excel (.xlsx) ou CSV.');
                 return;
             }
 

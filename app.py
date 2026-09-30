@@ -44,7 +44,7 @@ else:
     UPLOAD_FOLDER = os.path.join(_BASE_DIR, 'uploads')
     OUTPUT_FOLDER = os.path.join(_BASE_DIR, 'static', 'recibos')
 
-ALLOWED_EXTENSIONS = {'pdf', 'csv'}
+ALLOWED_EXTENSIONS = {'pdf', 'csv', 'xlsx', 'xls'}
 
 for _pasta in (UPLOAD_FOLDER, OUTPUT_FOLDER):
     try:
@@ -158,11 +158,156 @@ def _coluna_csv_corresponde(nome_coluna, coluna_esperada):
     """Verifica se uma coluna do arquivo corresponde à coluna esperada."""
     col = _normalizar_nome_coluna_csv(nome_coluna)
     aliases = {
-        'funcionário': ('funcionário', 'funcionario'),
-        'descrição': ('descrição', 'descricao'),
+        'funcionário': ('funcionário', 'funcionario', 'nome'),
+        'descrição': ('descrição', 'descricao', 'veículo', 'veiculo'),
         'valor': ('valor',),
     }
     return col in aliases.get(coluna_esperada.lower(), (coluna_esperada.lower(),))
+
+
+def _converter_valor_recibo(valor):
+    """Converte valor numérico ou texto (R$ 150,00) para float."""
+    if valor is None:
+        raise ValueError('Valor vazio')
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    valor_str = str(valor).strip()
+    if not valor_str:
+        raise ValueError('Valor vazio')
+    return _parsear_valor_brl(valor_str)
+
+
+def _identificar_tipo_recibo(descricao_ou_veiculo):
+    """
+    Identifica o tipo de recibo a partir da coluna Veículo.
+
+    Regra:
+    - contém "carro" → Ajuda de Custo
+    - qualquer outra informação (ou vazio) → Vale transporte
+    """
+    texto = ''
+    if descricao_ou_veiculo is not None:
+        texto = str(descricao_ou_veiculo).strip()
+
+    if texto and 'carro' in texto.lower():
+        return 'ajuda_custo', 'Ajuda de Custo'
+
+    return 'vale_transporte', 'Vale transporte'
+
+
+def processar_xlsx_vale_transporte(caminho_xlsx):
+    """Processa planilha Excel no modelo padrão: Nome | Veículo | Valor."""
+    print(f"🔍 INICIANDO PROCESSAMENTO DO EXCEL: {caminho_xlsx}")
+
+    if not os.path.exists(caminho_xlsx):
+        print(f"❌ Arquivo não encontrado: {caminho_xlsx}")
+        return []
+
+    if os.path.getsize(caminho_xlsx) == 0:
+        print("❌ Arquivo está vazio")
+        return []
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        print("❌ openpyxl não instalado")
+        raise RuntimeError(
+            'Suporte a Excel requer o pacote openpyxl. Execute: pip install openpyxl'
+        )
+
+    dados_finais = []
+
+    try:
+        wb = load_workbook(caminho_xlsx, data_only=True)
+        ws = wb.active
+        print(f"📋 Planilha ativa: {ws.title}")
+
+        linhas = list(ws.iter_rows(values_only=True))
+        if not linhas:
+            print("❌ Planilha vazia")
+            return []
+
+        cabecalho = [(_normalizar_nome_coluna_csv(str(c)) if c is not None else '') for c in linhas[0]]
+        print(f"📋 Cabeçalho: {cabecalho}")
+
+        idx_nome = next(
+            (i for i, c in enumerate(cabecalho) if c in ('nome', 'funcionário', 'funcionario')),
+            None,
+        )
+        idx_veiculo = next(
+            (
+                i
+                for i, c in enumerate(cabecalho)
+                if c in ('veículo', 'veiculo', 'descrição', 'descricao')
+            ),
+            None,
+        )
+        idx_valor = next((i for i, c in enumerate(cabecalho) if c == 'valor'), None)
+
+        if idx_nome is None or idx_valor is None:
+            print(f"❌ Cabeçalho inválido. Esperado: Nome, Veículo, Valor. Encontrado: {cabecalho}")
+            return []
+
+        # Se não houver coluna Veículo, assume índice 1 (modelo padrão)
+        if idx_veiculo is None:
+            idx_veiculo = 1 if idx_nome == 0 else None
+
+        print(f"📋 Índices: nome={idx_nome}, veiculo={idx_veiculo}, valor={idx_valor}")
+
+        for i, row in enumerate(linhas[1:], start=2):
+            if not row:
+                continue
+
+            nome_raw = row[idx_nome] if idx_nome < len(row) else None
+            veiculo_raw = (
+                row[idx_veiculo]
+                if idx_veiculo is not None and idx_veiculo < len(row)
+                else None
+            )
+            valor_raw = row[idx_valor] if idx_valor < len(row) else None
+
+            nome = str(nome_raw).strip() if nome_raw is not None else ''
+            if not nome:
+                print(f"❌ Pulando linha {i}: sem nome")
+                continue
+
+            try:
+                valor_float = _converter_valor_recibo(valor_raw)
+            except (ValueError, TypeError) as e:
+                print(f"❌ Pulando linha {i}: valor inválido '{valor_raw}': {e}")
+                continue
+
+            if valor_float <= 0:
+                print(f"❌ Pulando linha {i}: valor inválido ({valor_float})")
+                continue
+
+            tipo_recibo, descricao = _identificar_tipo_recibo(veiculo_raw)
+
+            dados_finais.append({
+                'nome': nome,
+                'tipo': tipo_recibo,
+                'descricao': descricao,
+                'valor': valor_float,
+                'data': datetime.now().strftime('%d/%m/%Y'),
+            })
+            print(f"✅ Adicionado: {nome} - {tipo_recibo} - R$ {valor_float:,.2f}")
+
+    except Exception as e:
+        print(f"❌ Erro ao processar Excel: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+    print(f"✅ Total de registros processados (Excel): {len(dados_finais)}")
+    return dados_finais
+
+
+def processar_arquivo_vale_transporte(caminho_arquivo):
+    """Processa CSV ou Excel (modelo padrão Combustível) para VT/Ajuda de Custo."""
+    extensao = os.path.splitext(caminho_arquivo)[1].lower()
+    if extensao in ('.xlsx', '.xls'):
+        return processar_xlsx_vale_transporte(caminho_arquivo)
+    return processar_csv_vale_transporte(caminho_arquivo)
 
 
 def processar_csv_vale_transporte(caminho_csv):
@@ -222,6 +367,8 @@ def processar_csv_vale_transporte(caminho_csv):
                     print(f"📋 Colunas encontradas: {leitor.fieldnames}")
                     
                     # Verificar se as colunas necessárias existem (case insensitive, com/sem acento)
+                    # Modelo padrão Excel: Nome, Veículo, Valor
+                    # Modelo legado CSV: Funcionário, descrição, Valor
                     colunas_necessarias = ['Funcionário', 'descrição', 'Valor']
                     fieldnames = leitor.fieldnames or []
                     colunas_encontradas = [_normalizar_nome_coluna_csv(col) for col in fieldnames]
@@ -247,9 +394,9 @@ def processar_csv_vale_transporte(caminho_csv):
                     mapeamento_colunas = {}
                     for col_original in fieldnames:
                         col_lower = _normalizar_nome_coluna_csv(col_original)
-                        if col_lower in ('funcionário', 'funcionario'):
+                        if col_lower in ('funcionário', 'funcionario', 'nome'):
                             mapeamento_colunas['Funcionário'] = col_original
-                        elif col_lower in ('descrição', 'descricao'):
+                        elif col_lower in ('descrição', 'descricao', 'veículo', 'veiculo'):
                             mapeamento_colunas['descrição'] = col_original
                         elif col_lower == 'valor':
                             mapeamento_colunas['Valor'] = col_original
@@ -289,50 +436,19 @@ def processar_csv_vale_transporte(caminho_csv):
                 print(f"📄 Processando linha {i+1}: {linha}")
                 
                 # Extrair dados da linha usando o mapeamento
-                funcionario = linha.get(mapeamento_colunas.get('Funcionário', ''), '').strip()
-                descricao = linha.get(mapeamento_colunas.get('descrição', ''), '').strip()
-                valor_str = linha.get(mapeamento_colunas.get('Valor', ''), '').strip()
+                funcionario = (linha.get(mapeamento_colunas.get('Funcionário', ''), '') or '').strip()
+                descricao = (linha.get(mapeamento_colunas.get('descrição', ''), '') or '').strip()
+                valor_str = (linha.get(mapeamento_colunas.get('Valor', ''), '') or '').strip()
                 
-                # Validações
-                if not funcionario or not descricao or not valor_str:
+                # Validações (descrição/veículo pode ficar vazia = Vale transporte)
+                if not funcionario or not valor_str:
                     print(f"❌ Pulando linha {i+1}: dados incompletos")
                     continue
                 
                 # Converter valor
                 try:
                     print(f"💰 Valor original: '{valor_str}'")
-                    
-                    # Limpar valor (remover R$, espaços, etc.)
-                    valor_clean = re.sub(r'[^\d,.]', '', valor_str)
-                    print(f"💰 Valor limpo: '{valor_clean}'")
-                    
-                    if ',' in valor_clean:
-                        # Formato brasileiro: 1.234,56 ou 150,00
-                        partes = valor_clean.split(',')
-                        print(f"💰 Partes separadas por vírgula: {partes}")
-                        
-                        if len(partes) == 2:
-                            # Verificar se a parte inteira tem pontos (separadores de milhares)
-                            parte_inteira = partes[0].replace('.', '')
-                            parte_decimal = partes[1]
-                            print(f"💰 Parte inteira: '{parte_inteira}', Parte decimal: '{parte_decimal}'")
-                            
-                            # Garantir que a parte decimal tenha 2 dígitos
-                            if len(parte_decimal) == 1:
-                                parte_decimal = parte_decimal + '0'
-                            elif len(parte_decimal) > 2:
-                                parte_decimal = parte_decimal[:2]
-                            
-                            valor_str_final = f"{parte_inteira}.{parte_decimal}"
-                            print(f"💰 Valor final para conversão: '{valor_str_final}'")
-                            valor_float = float(valor_str_final)
-                        else:
-                            # Se tem vírgula mas não é formato decimal, tratar como inteiro
-                            valor_float = float(valor_clean.replace('.', '').replace(',', ''))
-                    else:
-                        # Se não tem vírgula, tratar como inteiro
-                        valor_float = float(valor_clean.replace('.', ''))
-                    
+                    valor_float = _converter_valor_recibo(valor_str)
                     print(f"💰 Valor convertido: {valor_float}")
                     
                     if valor_float <= 0:
@@ -343,22 +459,13 @@ def processar_csv_vale_transporte(caminho_csv):
                     print(f"❌ Pulando linha {i+1}: erro ao converter valor '{valor_str}': {e}")
                     continue
                 
-                # Identificar tipo de recibo baseado na descrição (case insensitive)
-                tipo_recibo = None
-                descricao_lower = descricao.lower()
-                if 'ajuda de custo' in descricao_lower or 'ajuda custo' in descricao_lower:
-                    tipo_recibo = 'ajuda_custo'
-                elif 'vale transporte' in descricao_lower or 'vale-transporte' in descricao_lower or 'valetransporte' in descricao_lower:
-                    tipo_recibo = 'vale_transporte'
-                else:
-                    print(f"❌ Pulando linha {i+1}: tipo de recibo não identificado na descrição '{descricao}'")
-                    continue
+                tipo_recibo, descricao_final = _identificar_tipo_recibo(descricao)
                 
                 # Adicionar aos dados finais
                 dados_finais.append({
                     'nome': funcionario,
                     'tipo': tipo_recibo,
-                    'descricao': descricao,
+                    'descricao': descricao_final,
                     'valor': valor_float,
                     'data': datetime.now().strftime('%d/%m/%Y')
                 })
@@ -2623,13 +2730,32 @@ def download_recibo_avulso():
 
 @app.route('/vale_transporte_ajuda_custo')
 def vale_transporte_ajuda_custo():
-    """Página para upload de CSV de vale transporte e ajuda de custo"""
+    """Página para upload de planilha de vale transporte e ajuda de custo"""
     return render_template('vale_transporte_ajuda_custo.html')
+
+
+@app.route('/download_modelo_combustivel')
+def download_modelo_combustivel():
+    """Baixa o modelo padrão Excel (Nome | Veículo | Valor)."""
+    modelo_path = _asset_path('modelos', 'modelo_combustivel.xlsx')
+    if not os.path.exists(modelo_path):
+        # Fallback se o arquivo estiver em static/modelos (ambiente local antigo)
+        modelo_path = _asset_path('static', 'modelos', 'modelo_combustivel.xlsx')
+    if not os.path.exists(modelo_path):
+        flash('Modelo padrão não encontrado.', 'error')
+        return redirect(url_for('vale_transporte_ajuda_custo'))
+    return send_file(
+        modelo_path,
+        as_attachment=True,
+        download_name='modelo_combustivel.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
 
 @app.route('/upload_csv_vale_transporte', methods=['POST'])
 def upload_csv_vale_transporte():
-    """Processa upload de CSV de vale transporte e ajuda de custo"""
-    print("🔍 INICIANDO UPLOAD DE CSV...")
+    """Processa upload de Excel/CSV de vale transporte e ajuda de custo"""
+    print("🔍 INICIANDO UPLOAD DE PLANILHA...")
     
     if 'arquivo' not in request.files:
         print("❌ Nenhum arquivo encontrado na requisição")
@@ -2644,18 +2770,20 @@ def upload_csv_vale_transporte():
         flash('Nenhum arquivo selecionado', 'error')
         return redirect(url_for('vale_transporte_ajuda_custo'))
     
-    # Verificar se é um arquivo CSV
-    if not file or not file.filename.lower().endswith('.csv'):
-        print(f"❌ Arquivo não é CSV: {file.filename}")
-        flash('Tipo de arquivo não permitido. Use apenas CSV.', 'error')
+    extensao = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if not file or extensao not in ('csv', 'xlsx', 'xls'):
+        print(f"❌ Arquivo não permitido: {file.filename}")
+        flash('Tipo de arquivo não permitido. Use Excel (.xlsx) ou CSV.', 'error')
         return redirect(url_for('vale_transporte_ajuda_custo'))
     
-    print("✅ Arquivo CSV validado com sucesso")
+    print(f"✅ Arquivo {extensao.upper()} validado com sucesso")
     
     # Limpar nome do arquivo
     filename = secure_filename(file.filename)
     filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
     filename = re.sub(r'[^\w\-_\.]', '_', filename)
+    if not filename.lower().endswith(f'.{extensao}'):
+        filename = f"{filename}.{extensao}"
     
     print(f"📁 Nome do arquivo limpo: {filename}")
     
@@ -2674,23 +2802,19 @@ def upload_csv_vale_transporte():
         
         print(f"✅ Arquivo existe: {os.path.getsize(filepath)} bytes")
         
-        # Processar CSV
-        print("🔍 Iniciando processamento do CSV...")
-        dados = processar_csv_vale_transporte(filepath)
+        # Processar Excel ou CSV
+        print("🔍 Iniciando processamento da planilha...")
+        dados = processar_arquivo_vale_transporte(filepath)
         
         if not dados:
-            print("❌ Nenhum dado processado do CSV")
-            # Tentar ler o arquivo para diagnosticar o problema
-            try:
-                with open(filepath, 'r', encoding='utf-8-sig') as f:
-                    primeira_linha = f.readline()
-                    segunda_linha = f.readline()
-                    print(f"📋 Primeira linha do arquivo: {repr(primeira_linha)}")
-                    print(f"📋 Segunda linha do arquivo: {repr(segunda_linha)}")
-            except:
-                pass
-            
-            flash('Nenhum dado válido encontrado no CSV. Verifique: 1) O arquivo contém as colunas exatas: "Funcionário", "descrição", "Valor" (com acentos); 2) Os valores estão no formato brasileiro (ex: 150,00); 3) As descrições contêm exatamente "Ajuda de Custo" ou "Vale transporte". Dica: Salve o Excel como "CSV UTF-8" ou "CSV (separado por vírgulas)".', 'error')
+            print("❌ Nenhum dado processado da planilha")
+            flash(
+                'Nenhum dado válido encontrado. Use o modelo padrão com colunas '
+                '"Nome", "Veículo" e "Valor". Se Veículo tiver Carro → Ajuda de Custo; '
+                'qualquer outra informação → Vale transporte. '
+                'Você pode baixar o modelo na página de upload.',
+                'error',
+            )
             return redirect(url_for('vale_transporte_ajuda_custo'))
         
         print(f"✅ Dados processados: {len(dados)} registros")
